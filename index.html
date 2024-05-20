@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartLab Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .device {
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      padding: 10px;
+    }
+    .device h2 {
+      margin: 0;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .data-table th, .data-table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <h1>SmartLab Dashboard</h1>
+  <div id="devices"></div>
+
+  <script>
+    const apiBaseUrl = 'http://localhost:3000/api';
+
+    async function fetchDevices() {
+      const response = await fetch(`${apiBaseUrl}/devices`);
+      const devices = await response.json();
+      const devicesContainer = document.getElementById('devices');
+
+      devices.forEach(device => {
+        const deviceDiv = document.createElement('div');
+        deviceDiv.className = 'device';
+
+        const deviceHeader = document.createElement('h2');
+        deviceHeader.textContent = `${device.Nome} (${device.MacAddress})`;
+        deviceDiv.appendChild(deviceHeader);
+
+        const deviceDescription = document.createElement('p');
+        deviceDescription.textContent = `Descrição: ${device.Descricao}`;
+        deviceDiv.appendChild(deviceDescription);
+
+        const deviceIP = document.createElement('p');
+        deviceIP.textContent = `IP Central: ${device.CentralIP}, IP Atribuído: ${device.IPAtribuido}`;
+        deviceDiv.appendChild(deviceIP);
+
+        const sensorsTable = document.createElement('table');
+        sensorsTable.className = 'data-table';
+        sensorsTable.innerHTML = `
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>Tipo</th>
+              <th>Pin</th>
+              <th>Modo de Operação</th>
+              <th>Valor</th>
+              <th>Data de Criação</th>
+              <th>Unidade</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        `;
+        deviceDiv.appendChild(sensorsTable);
+
+        const actuatorsTable = document.createElement('table');
+        actuatorsTable.className = 'data-table';
+        actuatorsTable.innerHTML = `
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>Tipo</th>
+              <th>Pin</th>
+              <th>Modo de Operação</th>
+              <th>Valor</th>
+              <th>Data de Criação</th>
+              <th>Unidade</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        `;
+        deviceDiv.appendChild(actuatorsTable);
+
+        devicesContainer.appendChild(deviceDiv);
+
+        fetchSensors(device.MacAddress, sensorsTable.querySelector('tbody'));
+        fetchActuators(device.MacAddress, actuatorsTable.querySelector('tbody'));
+      });
+    }
+
+    async function fetchSensors(macAddress, tableBody) {
+      const response = await fetch(`${apiBaseUrl}/devices/${macAddress}/sensors`);
+      const sensors = await response.json();
+      sensors.forEach(sensor => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${sensor.SensorID}</td>
+          <td>${sensor.Nome}</td>
+          <td>${sensor.Tipo}</td>
+          <td>${sensor.Pin}</td>
+          <td>${sensor.ModoOperacao}</td>
+          <td>${sensor.Valor}</td>
+          <td>${sensor.DataCriacao}</td>
+          <td>${sensor.Unidade}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    async function fetchActuators(macAddress, tableBody) {
+      const response = await fetch(`${apiBaseUrl}/devices/${macAddress}/actuators`);
+      const actuators = await response.json();
+      actuators.forEach(actuator => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${actuator.ActuatorID}</td>
+          <td>${actuator.Nome}</td>
+          <td>${actuator.Tipo}</td>
+          <td>${actuator.Pin}</td>
+          <td>${actuator.ModoOperacao}</td>
+          <td>${actuator.Valor}</td>
+          <td>${actuator.DataCriacao}</td>
+          <td>${actuator.Unidade}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    fetchDevices();
+  </script>
+</body>
+</html>
