@@ -94,7 +94,7 @@ app.post('/', async (req, res) => {
           sensor.Valor,
           convertToMySQLDateTime(sensor.DataCriacao),  // Converte a data para o formato MySQL
           sensor.Unidade || null,
-          sensor.isDeleted ? 1 : 0
+          sensor.isDeleted.trim().toLowerCase() === 'true' ? 1 : 0 
         ];
         return queryPromise(sensorQuery, sensorValues);
       });
@@ -121,6 +121,7 @@ app.post('/', async (req, res) => {
             Unidade = VALUES(Unidade),
             isDeleted = VALUES(isDeleted)
         `;
+        
         const actuatorValues = [
           actuator.ID,
           data.MacAddress,
@@ -131,7 +132,7 @@ app.post('/', async (req, res) => {
           actuator.Valor,
           convertToMySQLDateTime(actuator.DataCriacao),  // Converte a data para o formato MySQL
           actuator.Unidade || null,
-          actuator.isDeleted ? 1 : 0
+          actuator.isDeleted.trim().toLowerCase() === 'true' ? 1 : 0 
         ];
         return queryPromise(actuatorQuery, actuatorValues);
       });
@@ -164,7 +165,7 @@ app.get('/api/devices', async (req, res) => {
 app.get('/api/devices/:macAddress/sensors', async (req, res) => {
   const { macAddress } = req.params;
   try {
-    const sensors = await queryPromise('SELECT * FROM Sensores WHERE MacAddress = ?', [macAddress]);
+    const sensors = await queryPromise('SELECT * FROM Sensores WHERE MacAddress = ? AND isDeleted = 0', [macAddress]);
     res.status(200).json(sensors);
   } catch (err) {
     console.error(err);
@@ -176,7 +177,7 @@ app.get('/api/devices/:macAddress/sensors', async (req, res) => {
 app.get('/api/devices/:macAddress/actuators', async (req, res) => {
   const { macAddress } = req.params;
   try {
-    const actuators = await queryPromise('SELECT * FROM Atuadores WHERE MacAddress = ?', [macAddress]);
+    const actuators = await queryPromise('SELECT * FROM Atuadores WHERE MacAddress = ? AND isDeleted = 0', [macAddress]);
     res.status(200).json(actuators);
   } catch (err) {
     console.error(err);
@@ -199,6 +200,8 @@ app.post('/api/sensors/delete', async (req, res) => {
     res.status(500).send('Error deleting sensor');
   }
 });
+
+
 
 
 
