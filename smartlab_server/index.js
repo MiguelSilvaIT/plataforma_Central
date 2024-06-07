@@ -201,6 +201,17 @@ app.post('/api/sensors/delete', async (req, res) => {
   }
 });
 
+app.get('/api/devices/:macAddress', async (req, res) => {
+  const { macAddress } = req.params;
+  try {
+    const device = await queryPromise('SELECT * FROM Dispositivos WHERE MacAddress = ?', [macAddress]);
+    res.status(200).json(device[0].IPAtribuido);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error fetching device IP');
+  }
+});
+
 
 
 

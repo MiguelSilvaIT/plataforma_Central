@@ -2,9 +2,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('formDispositivo').addEventListener('submit', async function(event) {
       event.preventDefault();
   
-      const deviceType = document.getElementById('deviceType').value;
+      const tipoDispositivo = document.getElementById('tipoDispositivo').value;
       const nome = document.getElementById('nomeDispositivo').value;
-      const tipo = document.getElementById('tipoDispositivo').value;
+      const tipo = document.getElementById('tipoDispositivoDetalhe').value;
       const pin = document.getElementById('pinDispositivo').value;
       const modoOperacao = document.getElementById('modoOperacao').value;
       const unidade = document.getElementById('idUnidade').value;
@@ -12,10 +12,19 @@ document.addEventListener('DOMContentLoaded', function() {
       const valor = 0;
       const dtCriacao = new Date();
       const dispositivoId = 1;  //esp.match(/\(([^)]+)\)$/)[1]; 
+
+      const response = await fetch(`http://localhost:3000/api/devices/${esp}`);
+      const deviceDetails = await response.json();
+  
+      const espIP = deviceDetails;
+      
+      // You can now use espIP in your application logic
+      console.log(`ESP IP: ${espIP}`);
   
       const data = {
         nome,
         tipo,
+        tipoDispositivo,
         pin,
         modoOperacao,
         valor,
@@ -24,13 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
         unidade,
       };
   
-      let url = '';
-      let espIP = 'http://192.168.1.71';
-      if (deviceType === 'sensor') {
-        url = `${espIP}/addSensor`;
-      } else if (deviceType === 'actuator') {
-        url = `${espIP}/atuadores`;
-      }
+      let url = `http://${espIP}/addDevice`;
+  
       console.log('url', url);
   
       try {
@@ -43,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
   
         if (response.ok) {
-          alert(`${deviceType.charAt(0).toUpperCase() + deviceType.slice(1)} added successfully!`);
+          alert(`${tipoDispositivo.charAt(0).toUpperCase() + tipoDispositivo.slice(1)} added successfully!`);
         } else {
           const errorData = await response.json();
           alert(`Error: ${errorData.message}`);
