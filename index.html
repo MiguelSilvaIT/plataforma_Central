@@ -1,234 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartLab Dashboard</title>
-    <link
-      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
     <style>
-      body {
-        padding: 20px;
-      }
-      .device {
-        border: 1px solid #ccc;
-        margin-bottom: 20px;
-        padding: 20px;
-        border-radius: 5px;
-      }
+        body {
+            padding: 20px;
+        }
+        .device {
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .device h2 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        .device p {
+            margin: 5px 0;
+        }
+        .sensor, .actuator {
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .detail-button {
+            margin-top: 10px;
+        }
     </style>
     <script src="main.js"></script>
-  </head>
-  <body>
+</head>
+<body>
     <div class="container">
-      <h1 class="mb-4">SmartLab Dashboard</h1>
-      <div id="devices"></div>
-
-      <!-- New form section -->
-      <div class="mt-5">
-        <h2>Adicionar Atuador/Sensor</h2>
-        <div class="form-group">
-          <label for="deviceType">Tipo:</label>
-          <select class="form-control" id="tipoDispositivo" onchange="toggleForm()">
-            <option value="atuador">Atuador</option>
-            <option value="sensor">Sensor</option>
-          </select>
-        </div>
-
-        <form id="formDispositivo">
-          <div class="form-group">
-            <label for="nomeDispositivo">Nome:</label>
-            <input
-              type="text"
-              class="form-control"
-              id="nomeDispositivo"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label for="tipoDispositivo">Tipo:</label>
-            <select class="form-control" id="tipoDispositivoDetalhe" required>
-              <option value="temperatura">Temperatura</option>
-              <option value="luminosidade">Luminosidade</option>
-              <option value="humidade">Humidade</option>
-              <option value="pressao">Pressão</option>
-              <option value="led">Led</option>
-              <option value="sprinkler">Sprinkler</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="pinDispositivo">Pin:</label>
-            <input
-              type="text"
-              class="form-control"
-              id="pinDispositivo"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label for="modoOperacao">Modo de Operação:</label>
-            <select class="form-control" id="modoOperacao">
-              <option value="Analogico">Analogico</option>
-              <option value="Digital">Digital</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="idUnidade">Unidade:</label>
-            <select class="form-control unidade-dropdown" id="idUnidade">
-              <option value="Bool">Bool</option>
-              <option value="Numerico">Numerico</option>
-              <option value="K">K</option>
-              <option value="Lumens">Lumens</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="espDropdown">Selecionar Dispositivo:</label>
-            <select class="form-control" id="espDropdown">
-              <!-- ESP options will be populated here -->
-            </select>
-          </div>
-
-          <button type="submit" class="btn btn-primary">
-            Adicionar Dispositivo
-          </button>
-        </form>
-      </div>
+        <h1 class="mb-4">SmartLab Dashboard - Resumo</h1>
+        <div id="devices"></div>
     </div>
 
     <script>
-      const apiBaseUrl = "http://localhost:3000/api";
+        const apiBaseUrl = "http://localhost:3000/api";
 
-      async function fetchDevices() {
-        const response = await fetch(`${apiBaseUrl}/devices`);
-        const devices = await response.json();
-        const devicesContainer = document.getElementById("devices");
-        const espDropdown = document.getElementById("espDropdown");
+        async function fetchDevices() {
+            const response = await fetch(`${apiBaseUrl}/devices`);
+            const devices = await response.json();
+            const devicesContainer = document.getElementById("devices");
 
-        devices.forEach((device) => {
-          const deviceDiv = document.createElement("div");
-          deviceDiv.className = "device";
+            devices.forEach(async (device) => {
+                const deviceDiv = document.createElement("div");
+                deviceDiv.className = "device";
 
-          const deviceHeader = document.createElement("h2");
-          deviceHeader.textContent = `${device.Nome} (${device.MacAddress})`;
-          deviceDiv.appendChild(deviceHeader);
+                const deviceHeader = document.createElement("h2");
+                deviceHeader.textContent = `${device.Nome} (${device.MacAddress})`;
+                deviceDiv.appendChild(deviceHeader);
 
-          const deviceDescription = document.createElement("p");
-          deviceDescription.textContent = `Descrição: ${device.Descricao}`;
-          deviceDiv.appendChild(deviceDescription);
+                const deviceDescription = document.createElement("p");
+                deviceDescription.textContent = `IP Central: ${device.CentralIP}, IP Atribuído: ${device.IPAtribuido}`;
+                deviceDiv.appendChild(deviceDescription);
 
-          const deviceIP = document.createElement("p");
-          deviceIP.textContent = `IP Central: ${device.CentralIP}, IP Atribuído: ${device.IPAtribuido}`;
-          deviceDiv.appendChild(deviceIP);
+                const sensorsSummary = document.createElement("div");
+                sensorsSummary.className = "sensor";
+                sensorsSummary.textContent = "Sensores: Carregando...";
+                deviceDiv.appendChild(sensorsSummary);
 
-          const sensorsTable = document.createElement("table");
-          sensorsTable.className = "table table-striped";
-          sensorsTable.innerHTML = `
-          <thead class="thead-dark">
-            <tr>
-              <th>ID</th>
-              <th>Nome</th>
-              <th>Tipo</th>
-              <th>Pin</th>
-              <th>Modo de Operação</th>
-              <th>Valor</th>
-              <th>Data de Criação</th>
-              <th>Unidade</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        `;
-          deviceDiv.appendChild(sensorsTable);
+                const actuatorsSummary = document.createElement("div");
+                actuatorsSummary.className = "actuator";
+                actuatorsSummary.textContent = "Atuadores: Carregando...";
+                deviceDiv.appendChild(actuatorsSummary);
 
-          const actuatorsTable = document.createElement("table");
-          actuatorsTable.className = "table table-striped";
-          actuatorsTable.innerHTML = `
-          <thead class="thead-dark">
-            <tr>
-              <th>ID</th>
-              <th>Nome</th>
-              <th>Tipo</th>
-              <th>Pin</th>
-              <th>Modo de Operação</th>
-              <th>Valor</th>
-              <th>Data de Criação</th>
-              <th>Unidade</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        `;
-          deviceDiv.appendChild(actuatorsTable);
+                await fetchSensors(device.MacAddress, sensorsSummary);
+                await fetchActuators(device.MacAddress, actuatorsSummary);
 
-          devicesContainer.appendChild(deviceDiv);
+                const detailButton = document.createElement("a");
+                detailButton.className = "btn btn-primary detail-button";
+                detailButton.href = `detail.html?mac=${device.MacAddress}`;
+                detailButton.textContent = "Ver Detalhes";
+                deviceDiv.appendChild(detailButton);
 
-          fetchSensors(device.MacAddress, sensorsTable.querySelector("tbody"));
-          fetchActuators(
-            device.MacAddress,
-            actuatorsTable.querySelector("tbody")
-          );
+                devicesContainer.appendChild(deviceDiv);
+            });
+        }
 
-          // Populate the ESP dropdown
-          const option = document.createElement("option");
-          option.value = device.MacAddress;
-          option.textContent = `${device.Nome} (${device.MacAddress})`;
-          espDropdown.appendChild(option);
-        });
-      }
+        async function fetchSensors(macAddress, element) {
+            const response = await fetch(`${apiBaseUrl}/devices/${macAddress}/sensors`);
+            const sensors = await response.json();
+            if (sensors.length > 0) {
+                const sensorsData = sensors.map(sensor => `${sensor.Nome}: ${sensor.Valor} ${sensor.Unidade}`).join('<br>');
+                element.innerHTML = `Sensores:<br>${sensorsData}`;
+            } else {
+                element.textContent = "Sensores: Nenhum sensor encontrado.";
+            }
+        }
 
-      async function fetchSensors(macAddress, tableBody) {
-        const response = await fetch(
-          `${apiBaseUrl}/devices/${macAddress}/sensors`
-        );
-        const sensors = await response.json();
-        sensors.forEach((sensor) => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-          <td>${sensor.SensorID}</td>
-          <td>${sensor.Nome}</td>
-          <td>${sensor.Tipo}</td>
-          <td>${sensor.Pin}</td>
-          <td>${sensor.ModoOperacao}</td>
-          <td>${sensor.Valor}</td>
-          <td>${sensor.DataCriacao}</td>
-          <td>${sensor.Unidade}</td>
-        `;
-          tableBody.appendChild(row);
-        });
-      }
+        async function fetchActuators(macAddress, element) {
+            const response = await fetch(`${apiBaseUrl}/devices/${macAddress}/actuators`);
+            const actuators = await response.json();
+            if (actuators.length > 0) {
+                const actuatorsData = actuators.map(actuator => `${actuator.Nome}: ${actuator.Valor}`).join('<br>');
+                element.innerHTML = `Atuadores:<br>${actuatorsData}`;
+            } else {
+                element.textContent = "Atuadores: Nenhum atuador encontrado.";
+            }
+        }
 
-      async function fetchActuators(macAddress, tableBody) {
-        const response = await fetch(
-          `${apiBaseUrl}/devices/${macAddress}/actuators`
-        );
-        const actuators = await response.json();
-        actuators.forEach((actuator) => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-          <td>${actuator.ActuatorID}</td>
-          <td>${actuator.Nome}</td>
-          <td>${actuator.Tipo}</td>
-          <td>${actuator.Pin}</td>
-          <td>${actuator.ModoOperacao}</td>
-          <td>${actuator.Valor}</td>
-          <td>${actuator.DataCriacao}</td>
-          <td>${actuator.Unidade}</td>
-        `;
-          tableBody.appendChild(row);
-        });
-      }
-
-      function toggleForm() {
-        const deviceType = document.getElementById("tipoDispositivo").value;
-        const formTitle = document.querySelector(".mt-5 h2");
-        formTitle.textContent = `Adicionar Novo ${
-          deviceType.charAt(0).toUpperCase() + deviceType.slice(1)
-        }`;
-      }
-
-      fetchDevices();
+        fetchDevices();
     </script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-  </body>
+</body>
 </html>
