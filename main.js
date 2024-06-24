@@ -15,11 +15,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
       const response = await fetch(`http://localhost:3000/api/devices/${esp}`);
       const deviceDetails = await response.json();
+      const is_ESP_registed = 0;
   
       const espIP = deviceDetails;
       
       // You can now use espIP in your application logic
-      console.log(`ESP IP: ${espIP}`);
+      console.log(`ESP dropdown: ${esp}`);
   
       const data = {
         nome,
@@ -29,11 +30,12 @@ document.addEventListener('DOMContentLoaded', function() {
         modoOperacao,
         valor,
         dtCriacao,
-        dispositivoId,
+        esp,
         unidade,
+        is_ESP_registed,
       };
   
-      let url = `http://${espIP}/addDevice`;
+      let url = `http://127.0.0.1:3000/addDevice`;
   
       console.log('url', url);
   
