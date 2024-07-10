@@ -16,13 +16,29 @@ const db = mysql.createConnection({
 });
 
 db.connect((err) => {
-  if (err) throw err;
+  if (err) {
+    console.error("Error connecting to database:", err);
+    return;
+  }
   console.log("Connected to database");
 });
 
 app.use(bodyParser.json());
 
 app.use(cors());
+
+const atualizarESPRegisted = (tipo, central_id, newId) => {
+  
+  console.log('tipo', tipo);
+  console.log('central_id', central_id);
+  console.log('newId', newId);
+  
+  const tabela = tipo === 'sensor' ? 'Sensores' : 'Atuadores';
+  const colunaId = tipo === 'sensor' ? 'SensorID' : 'ActuatorID';
+  const query = `UPDATE ${tabela} SET ${colunaId} = ?, is_ESP_Registed = 1 WHERE central_id = ?`;
+
+  return queryPromise(query, [newId, central_id]);
+};
 
 const queryPromise = (query, values) => {
   return new Promise((resolve, reject) => {
@@ -49,8 +65,7 @@ const convertToMySQLDateTime = (isoDate) => {
 
 app.post("/", async (req, res) => {
   const data = req.body;
-  console.log("Received data:", data); // Verifica os dados recebidos
-
+  //console.log("Received data:", data); 
   try {
     // Inserir ou atualizar dispositivo
     const deviceQuery = `
@@ -74,8 +89,8 @@ app.post("/", async (req, res) => {
     if (Array.isArray(data.Sensores) && data.Sensores.length > 0) {
       const sensorQueries = data.Sensores.map((sensor) => {
         const sensorQuery = `
-          INSERT INTO Sensores (SensorID, MacAddress, Nome, Tipo, Pin, ModoOperacao, Valor, DataCriacao, Unidade, isDeleted) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO Sensores (SensorID, MacAddress, Nome, Tipo, Pin, ModoOperacao, Valor, DataCriacao, Unidade, isDeleted, is_ESP_registed) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE 
             MacAddress = VALUES(MacAddress),
             Nome = VALUES(Nome),
@@ -85,7 +100,8 @@ app.post("/", async (req, res) => {
             Valor = VALUES(Valor),
             DataCriacao = VALUES(DataCriacao),
             Unidade = VALUES(Unidade),
-            isDeleted = VALUES(isDeleted)
+            isDeleted = VALUES(isDeleted),
+            is_ESP_registed = VALUES(is_ESP_registed)
         `;
         const sensorValues = [
           sensor.ID,
@@ -98,6 +114,7 @@ app.post("/", async (req, res) => {
           convertToMySQLDateTime(sensor.DataCriacao), // Converte a data para o formato MySQL
           sensor.Unidade || null,
           sensor.isDeleted.trim().toLowerCase() === "true" ? 1 : 0,
+          sensor.is_ESP_registed,
         ];
         return queryPromise(sensorQuery, sensorValues);
       });
@@ -111,8 +128,8 @@ app.post("/", async (req, res) => {
     if (Array.isArray(data.Atuadores) && data.Atuadores.length > 0) {
       const actuatorQueries = data.Atuadores.map((actuator) => {
         const actuatorQuery = `
-          INSERT INTO Atuadores (ActuatorID, MacAddress, Nome, Tipo, Pin, ModoOperacao, Valor, DataCriacao, Unidade, isDeleted) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO Atuadores (ActuatorID, MacAddress, Nome, Tipo, Pin, ModoOperacao, Valor, DataCriacao, Unidade, isDeleted, is_ESP_registed) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE 
             MacAddress = VALUES(MacAddress),
             Nome = VALUES(Nome),
@@ -122,7 +139,8 @@ app.post("/", async (req, res) => {
             Valor = VALUES(Valor),
             DataCriacao = VALUES(DataCriacao),
             Unidade = VALUES(Unidade),
-            isDeleted = VALUES(isDeleted)
+            isDeleted = VALUES(isDeleted),
+            is_ESP_registed = VALUES(is_ESP_registed)
         `;
 
         const actuatorValues = [
@@ -136,6 +154,7 @@ app.post("/", async (req, res) => {
           convertToMySQLDateTime(actuator.DataCriacao), // Converte a data para o formato MySQL
           actuator.Unidade || null,
           actuator.isDeleted.trim().toLowerCase() === "true" ? 1 : 0,
+          actuator.is_ESP_registed,
         ];
         return queryPromise(actuatorQuery, actuatorValues);
       });
@@ -155,9 +174,28 @@ app.post("/", async (req, res) => {
 app.post("/addDevice", (req, res) => {
   const data = req.body;
   console.log("Data received:", data.is_ESP_registed);
-  if (data.tipoDispositivo == "sensor") {
-    const actuatorQuery = `
-      INSERT INTO Sensores (SensorID, MacAddress, Nome, Tipo, Pin, ModoOperacao, Valor, DataCriacao, Unidade, isDeleted, is_ESP_registed)
+  const tabela = data.tipoDispositivo === "sensor" ? "Sensores" : "Atuadores";
+
+  // Verificar se o pin já está em uso
+  const checkPinQuery = `
+    SELECT * FROM ${tabela}
+    WHERE Pin = ? AND isDeleted = 0
+  `;
+
+  db.query(checkPinQuery, [data.pin], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send("Error checking pin availability");
+    }
+
+    if (result.length > 0) {
+      // Pin já está em uso
+      return res.status(400).send("Pin already in use");
+    }
+
+    // Pin não está em uso, prosseguir com a inserção
+    const insertQuery = `
+      INSERT INTO ${tabela} (${tabela === 'sensores' ? 'SensorID' : 'ActuatorID'}, MacAddress, Nome, Tipo, Pin, ModoOperacao, Valor, DataCriacao, Unidade, isDeleted, is_ESP_registed)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         MacAddress = VALUES(MacAddress),
@@ -171,8 +209,9 @@ app.post("/addDevice", (req, res) => {
         isDeleted = VALUES(isDeleted),
         is_ESP_registed = VALUES(is_ESP_registed)
     `;
+
     db.query(
-      actuatorQuery,
+      insertQuery,
       [
         -1,
         data.esp,
@@ -189,72 +228,62 @@ app.post("/addDevice", (req, res) => {
       (err, result) => {
         if (err) {
           console.error(err);
-          res.status(500).send("Error adding actuator");
+          return res.status(500).send("Error adding device");
         } else {
-          res.status(200).send("Actuator added successfully");
+          return res.status(200).send("Device added successfully");
         }
       }
     );
-  } else {
-    const actuatorQuery = `
-      INSERT INTO Atuadores (ActuatorID, MacAddress, Nome, Tipo, Pin, ModoOperacao, Valor, DataCriacao, Unidade, isDeleted, is_ESP_registed)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        MacAddress = VALUES(MacAddress),
-        Nome = VALUES(Nome),
-        Tipo = VALUES(Tipo),
-        Pin = VALUES(Pin),
-        ModoOperacao = VALUES(ModoOperacao),
-        Valor = VALUES(Valor),
-        DataCriacao = VALUES(DataCriacao),
-        Unidade = VALUES(Unidade),
-        isDeleted = VALUES(isDeleted),
-        is_ESP_registed = VALUES(is_ESP_registed)
-    `;
-    db.query(
-      actuatorQuery,
-      [
-        -1,
-        data.esp,
-        data.nome,
-        data.tipo,
-        data.pin,
-        data.modoOperacao,
-        data.valor,
-        convertToMySQLDateTime(data.dtCriacao),
-        data.unidade,
-        0,
-        data.is_ESP_registed,
-      ],
-      (err, result) => {
-        if (err) {
-          console.error(err);
-          res.status(500).send("Error adding actuator");
-        } else {
-          res.status(200).send("Actuator added successfully");
-        }
-      }
-    );
-  }
+  });
 });
 
 app.get('/dispositivos-nao-registados', (req, res) => {
-  const querySensores = 'SELECT * FROM Sensores WHERE is_ESP_registed = 0';
-  const queryAtuadores = 'SELECT * FROM Atuadores WHERE is_ESP_registed = 0';
+  const querySensores = 'SELECT *  FROM Sensores WHERE is_ESP_registed = 0';
+  const queryAtuadores = 'SELECT *  FROM Atuadores WHERE is_ESP_registed = 0';
+
+  const converterPrimeiraLetraParaMinuscula = (obj) => {
+    return Object.keys(obj).reduce((acc, key) => {
+      const firstLetterLowercase = key.charAt(0).toLowerCase() + key.slice(1);
+      acc[firstLetterLowercase] = obj[key];
+      return acc;
+    }, {});
+  };
 
   // Executar ambas as consultas
   Promise.all([
-    new Promise((resolve, reject) => db.query(querySensores, (err, results) => err ? reject(err) : resolve(results))),
-    new Promise((resolve, reject) => db.query(queryAtuadores, (err, results) => err ? reject(err) : resolve(results)))
+    new Promise((resolve, reject) => db.query(querySensores, (err, results) => err ? reject(err) : resolve(results.map(converterPrimeiraLetraParaMinuscula)))),
+    new Promise((resolve, reject) => db.query(queryAtuadores, (err, results) => err ? reject(err) : resolve(results.map(converterPrimeiraLetraParaMinuscula))))
   ]).then(([sensores, atuadores]) => {
     // Combinar os resultados e enviar
     res.json({ sensores, atuadores });
+    //debug
+    console.log('sensores', sensores);
+    console.log('atuadores', atuadores);
   }).catch((err) => {
     console.error('Erro ao buscar dispositivos não registrados:', err);
     res.status(500).send('Erro ao buscar dispositivos não registrados');
   });
 });
 
+app.post('/atualizar-ESPRegisted', (req, res) => {
+  const { sensores, atuadores } = req.body;
+  //debug
+  console.log('hello bitches');
+  // As promessas já foram definidas anteriormente
+  console.log('sensores', req.body);
+  const promessas = [
+    ...sensores.map(sensor => atualizarESPRegisted('sensor', sensor.central_id, sensor.newId)),
+    ...atuadores.map(atuador => atualizarESPRegisted('atuador', atuador.central_id, atuador.newId))
+  ];
+
+  // Executar todas as promessas
+  Promise.all(promessas)
+    .then(() => res.send('Atualização concluída com sucesso.'))
+    .catch(err => {
+      console.error('Erro ao atualizar dispositivos:', err);
+      res.status(500).send('Erro ao atualizar dispositivos.');
+    });
+});
 
 // Endpoint para obter todos os dispositivos
 app.get("/api/devices", async (req, res) => {

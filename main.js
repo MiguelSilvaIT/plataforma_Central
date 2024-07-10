@@ -18,9 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const is_ESP_registed = 0;
   
       const espIP = deviceDetails;
-      
-      // You can now use espIP in your application logic
-      console.log(`ESP dropdown: ${esp}`);
+
   
       const data = {
         nome,
